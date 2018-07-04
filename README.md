@@ -437,5 +437,42 @@ Thread-safety would be very nice to have, but without sacrificing the portabilit
 
 Reverse call trees are not supported yet. That is, you can't list the parents that called a given function in the performance reports. Right now if a function is called from multiple parents, it might be hard to recognize it as a bottleneck as its execution times are split among its parents. 
 
+##Examples
 
+```c++
+#include <signal.h>
+
+#include <cstdio>
+#include <cstdlib>
+
+#include <iostream>
+
+#include "PoppyDebugTools.h"
+
+static void GlobalSignalHandler(int Signal)
+{
+    if (Signal == SIGABRT || Signal == SIGSEGV)
+    {
+        std::cerr << Stack::GetTraceString() << std::endl;
+    }
+}
+
+void Bad()
+{
+    STACK;
+
+    int *p = NULL;
+    (*p) = 1;
+}
+
+int main(int Argc, char *Argv)
+{
+    signal(SIGABRT, GlobalSignalHandler);
+    signal(SIGSEGV, GlobalSignalHandler);
+
+    Bad();
+
+    return EXIT_SUCCESS;
+}
+```
 
