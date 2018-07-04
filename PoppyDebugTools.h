@@ -23,6 +23,8 @@
 #ifdef __APPLE__
 #include <mach/clock.h>
 #include <mach/mach.h>
+#elif _MSC_VER
+#include <Windows.h>
 #endif
 
 using namespace std;
@@ -35,19 +37,32 @@ typedef std::map<string, CallTree*> CallTreeChildrenContainer;
 //returns the time in milliseconds passed since the start of the epoch
 //TODO: this only works on Linux-like operating systems, port it to others. This may help: https://people.gnome.org/~fejj/code/zentimer.h
 inline double CurrentTime(){
-	struct timespec ts;
+    double currTime = 0.0;
 #if __APPLE__
 	clock_serv_t cclock;
-	mach_timespec_t mts;
+	mach_timespec_t ts;
 	host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-	clock_get_time(cclock, &mts);
+	clock_get_time(cclock, &ts);
 	mach_port_deallocate(mach_task_self(), cclock);
-	ts.tv_sec = mts.tv_sec;
-	ts.tv_nsec = mts.tv_nsec;
-#else
+    currTime = 1000.0 * ts.tv_sec + (double)ts.tv_nsec / 1e6;
+#elif  __linux__
+    struct timespec ts = { 0, 0 };
 	clock_gettime(CLOCK_REALTIME, &ts);
+    currTime = 1000.0 * ts.tv_sec + (double)ts.tv_nsec / 1e6;
+#elif _MSC_VER
+    FILETIME ft;
+    memset(&ft, 0, sizeof(ft));
+    GetSystemTimePreciseAsFileTime(&ft);
+
+    ULARGE_INTEGER ftExpanded;
+    ftExpanded.HighPart = ft.dwHighDateTime;
+    ftExpanded.LowPart = ft.dwLowDateTime;
+
+    currTime = static_cast<double>(ftExpanded.QuadPart) * 100 / 1e6;
+#else
+    #error "Poppy: Not supported platform"
 #endif
-	return 1000.0 * ts.tv_sec + (double) ts.tv_nsec / 1e6;
+    return currTime;
 }
 
 class Scope;
